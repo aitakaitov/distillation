@@ -17,6 +17,7 @@ parser.add_argument('--model', required=True, default='xlm-roberta-large', type=
 parser.add_argument('--lr', required=True, default=1e-5, type=float)
 parser.add_argument('--batch_size', required=False, default=1, type=int)
 parser.add_argument('--test_split_size', required=False, default=0.05, type=float)
+parser.add_argument('--cache_file', required=False, default=None, type=str)
 
 args = parser.parse_args()
 
@@ -84,7 +85,7 @@ def compute_metrics(p):
 
 if __name__ == '__main__':
     dataset = load_dataset('json', data_files='polyglot_processed.json')['train'] \
-                .map(tokenize_and_align_labels, batched=True, num_proc=None)
+                .map(tokenize_and_align_labels, batched=True, num_proc=None, cache_file_name=args.cache_file)
 
     split_dataset = dataset.train_test_split(test_size=args.test_split_size, shuffle=True, seed=42)
     train_dataset, test_dataset = split_dataset['train'], split_dataset['test']
