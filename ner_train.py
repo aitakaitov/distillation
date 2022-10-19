@@ -1,20 +1,14 @@
-import os
-import itertools
-import pandas as pd
 import numpy as np
-from datasets import Dataset, load_dataset
+from datasets import load_dataset
 from datasets import load_metric
 from transformers import AutoTokenizer, DataCollatorForTokenClassification
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 import argparse
 import wandb
 import time
-import torch
-import hashlib
-from torch.utils.data import DataLoader
 
 ############################### FORCE CPU
-torch.cuda.is_available = lambda: False
+# torch.cuda.is_available = lambda: False
 
 
 parser = argparse.ArgumentParser()
@@ -22,6 +16,7 @@ parser.add_argument('--epochs', required=True, default=5, type=int)
 parser.add_argument('--model', required=True, default='xlm-roberta-large', type=str)
 parser.add_argument('--lr', required=True, default=1e-5, type=float)
 parser.add_argument('--batch_size', required=False, default=1, type=int)
+parser.add_argument('--test_split_size', required=False, default=0.05, type=float)
 
 args = parser.parse_args()
 
@@ -34,10 +29,6 @@ wandb.init(project='rembert', entity='aitakaitov', tags=[h], config={
 
 label_list = ['O', 'I-LOC', 'B-LOC', 'I-ORG', 'B-ORG', 'I-PER', 'B-PER']
 label_encoding_dict = {'O': 0, 'I-LOC': 1, 'B-LOC': 2, 'I-ORG': 3, 'B-ORG': 4, 'I-PER': 5, 'B-PER': 6}
-
-DATASET_SIZE = 21070925
-TEST_SIZE = int(DATASET_SIZE * 0.075)
-TRAIN_SIZE = DATASET_SIZE - TEST_SIZE
 
 task = "ner"
 model_checkpoint = args.model
@@ -92,10 +83,10 @@ def compute_metrics(p):
 
 
 if __name__ == '__main__':
-    dataset = load_dataset('json', data_files='polyglot_processed_small.json')['train'] \
+    dataset = load_dataset('json', data_files='polyglot_processed.json')['train'] \
                 .map(tokenize_and_align_labels, batched=True, num_proc=None)
 
-    split_dataset = dataset.train_test_split(test_size=0.5, shuffle=True, seed=42)
+    split_dataset = dataset.train_test_split(test_size=args.test_split_size, shuffle=True, seed=42)
     train_dataset, test_dataset = split_dataset['train'], split_dataset['test']
 
     model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list))
@@ -123,7 +114,7 @@ if __name__ == '__main__':
         compute_metrics=compute_metrics
     )
 
-    #trainer.train()
+    trainer.train()
     trainer.evaluate()
 
     trainer.save_model(h)

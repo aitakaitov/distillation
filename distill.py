@@ -1,18 +1,13 @@
 import torch
-from torch.nn import CrossEntropyLoss, CosineEmbeddingLoss, KLDivLoss
+from torch.nn import CrossEntropyLoss, KLDivLoss
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from transformers import AutoModelForTokenClassification, AutoTokenizer
-import copy
-import pandas as pd
-import itertools
-import os
 import argparse
-from datasets import Dataset, load_metric, load_dataset
+from datasets import load_metric, load_dataset
 import numpy as np
 import wandb
 import time
-from datasets import load_from_disk
 
 DATASET_SEED = 42
 
@@ -26,8 +21,9 @@ parser.add_argument('--output_dir', required=True, type=str)
 parser.add_argument('--temperature', required=False, type=float, default=1.0)
 parser.add_argument('--weight_decay', required=False, type=float, default=1e-5)
 parser.add_argument('--loss', required=False, type=str, default='ce_kl', help='ce_kl')
-parser.add_argument('--distill_loss_weight', required=False, type=float, default=0.5,
+parser.add_argument('--distill_loss_weight', required=False, type=float, default=0.7,
                     help='Weight of KLDiv loss when loss == ce_kl. CE loss weight = 1 - val')
+parser.add_argument('--test_split_size', required=False, type=float, default=0.05)
 
 args = parser.parse_args()
 
@@ -179,7 +175,7 @@ def train(distiller, learning_rate, epochs, batch_size, weight_decay):
     })
 
     dataset = load_dataset('json', data_files='polyglot_processed.json')['train']
-    split_dataset = dataset.train_test_split(test_size=0.05, shuffle=True, seed=DATASET_SEED)
+    split_dataset = dataset.train_test_split(test_size=args.test_split_size, shuffle=True, seed=DATASET_SEED)
     train_dataset, test_dataset = split_dataset['train'], split_dataset['test']
 
     train_loader = DataLoader(train_dataset,
@@ -187,7 +183,7 @@ def train(distiller, learning_rate, epochs, batch_size, weight_decay):
 
     test_loader = DataLoader(test_dataset, collate_fn=lambda x: x)
 
-    device = 'cpu' #'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     distiller.student_model = distiller.student_model.to(device)
     distiller.teacher_model = distiller.teacher_model.to(device)
 
