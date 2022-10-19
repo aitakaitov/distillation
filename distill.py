@@ -171,7 +171,10 @@ def preprocess_samples(batch):
 def train(distiller, learning_rate, epochs, batch_size, weight_decay):
     wandb.init(project='rembert', entity='aitakaitov', tags=[h], config={
         'lr': args.lr,
-        'batch_size': args.batch_size
+        'batch_size': args.batch_size,
+        'temperature': args.temperature,
+        'teacher_model': args.teacher_model,
+        'student_model': args.student_model
     })
 
     dataset = load_dataset('json', data_files='polyglot_processed.json')['train']
