@@ -1,4 +1,5 @@
 import numpy as np
+import torch.backends.cuda
 from datasets import load_dataset
 from datasets import load_metric
 from transformers import AutoTokenizer, DataCollatorForTokenClassification
@@ -7,12 +8,14 @@ import argparse
 import wandb
 import time
 
+torch.backends.cuda.matmul.allow_tf32 = True
+
 ############################### FORCE CPU
 # torch.cuda.is_available = lambda: False
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', required=True, default=5, type=int)
+parser.add_argument('--epochs', required=True, default=2, type=int)
 parser.add_argument('--model', required=True, default='xlm-roberta-large', type=str)
 parser.add_argument('--lr', required=True, default=1e-5, type=float)
 parser.add_argument('--batch_size', required=False, default=1, type=int)
@@ -84,22 +87,31 @@ def compute_metrics(p):
 
 
 if __name__ == '__main__':
+    start_time = time.time_ns()
+
     dataset = load_dataset('json', data_files='polyglot_processed.json')['train'] \
                 .map(tokenize_and_align_labels, batched=True, num_proc=None, cache_file_name=args.cache_file)
+    dataset = dataset.shuffle(seed=42)
 
     split_dataset = dataset.train_test_split(test_size=args.test_split_size, shuffle=True, seed=42)
     train_dataset, test_dataset = split_dataset['train'], split_dataset['test']
+
+    print(f'Dataset mapping complete after {(time.time_ns() - start_time) / 1_000_000_000 / 60} mins')
 
     model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, num_labels=len(label_list))
 
     args = TrainingArguments(
         f'{args.model}_{args.lr}',
-        evaluation_strategy='epoch',
+        evaluation_strategy='steps',
+        eval_steps=45500,               # should be 10 times per epoch
         learning_rate=args.lr,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         num_train_epochs=args.epochs,
         weight_decay=1e-5,
+        fp16=True,
+        tf32=True,
+        save_strategy='epoch'
     )
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
