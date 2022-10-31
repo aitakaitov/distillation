@@ -105,7 +105,8 @@ class NERDataset:
                 # special token = -100
                 new_labels.append(-100)
             else:
-                new_labels.append(label_encoding_dict[ner_tags[word_id]])
+                #new_labels.append(label_encoding_dict[ner_tags[word_id]])
+                new_labels.append(-100)     # for split words we take loss only from the first token
 
         tokenized_inputs['label'] = new_labels
         return tokenized_inputs

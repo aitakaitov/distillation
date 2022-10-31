@@ -8,7 +8,7 @@ import argparse
 import wandb
 import time
 
-torch.backends.cuda.matmul.allow_tf32 = True
+#torch.backends.cuda.matmul.allow_tf32 = True
 
 ############################### FORCE CPU
 # torch.cuda.is_available = lambda: False
@@ -44,8 +44,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 def tokenize_and_align_labels(batch):
     tokens = batch['words']
     ner_tags = batch['ner']
-    tokenized_inputs = tokenizer(list(tokens), truncation=True, is_split_into_words=True, padding='max_length',
-                                 max_length=512)
+    tokenized_inputs = tokenizer(list(tokens), truncation=True, is_split_into_words=True, max_length=128)
     word_ids = tokenized_inputs.word_ids()
 
     current_word = None
@@ -110,11 +109,13 @@ if __name__ == '__main__':
         num_train_epochs=args.epochs,
         weight_decay=1e-5,
         fp16=True,
-        tf32=True,
-        save_strategy='epoch'
+        #tf32=True,
+        save_strategy='epoch',
+        save_steps=45500,
+        group_by_length=True
     )
 
-    data_collator = DataCollatorForTokenClassification(tokenizer)
+    data_collator = DataCollatorForTokenClassification(tokenizer, padding=True, pad_to_multiple_of=8)
     metric = load_metric("seqeval")
 
     trainer = Trainer(
