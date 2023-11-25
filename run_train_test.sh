@@ -14,7 +14,7 @@ conda activate torch
 
 cd $DATADIR
 
-wandb login --relogin bb99cb2b7077af36587e0415e9ea6b87a1f0013b
+wandb login --relogin xxx
 
 python $PYTHON_SCRIPT --lr 1e-5 --model xlm-roberta-large --batch_size 16 --epochs 2 --cache_file "${SCRATCHDIR}/cachefile"
 
